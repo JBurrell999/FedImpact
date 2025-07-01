@@ -1,32 +1,58 @@
-import streamlit_app.app as st
+
+
+import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
-from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import seaborn as sns
+macro_df = pd.read_pickle("data/final_macro.pkl")
+treatment_effect = np.load("models/treatment_effect.npy")
 
-st.set_page_config(page_title="CausalSim: Counterfactual Simulator", layout="centered")
-st.title("📈 CausalSim: Counterfactual Policy Simulator")
 
-macro_df = pd.read_pickle("../data/final_macro.pkl")
-causal_model = joblib.load("../models/causal_forest.pkl")
+model_names = [
+    "ridge", "xgb", "lgbm", "catboost"
+]
+models = {}
+for name in model_names:
+    models[name] = joblib.load(f"models/{name}_forecast.pkl")
 
-user_input = st.slider("Simulate FED Rate Policy (bps)", min_value=0.0, max_value=10.0,
-                       value=float(macro_df["fed_rate"].mean()), step=0.25)
 
-X_causal = macro_df[['unemployment', 'cpi', 'money_supply', 'employment']].values
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X_causal)
+st.set_page_config(page_title="Causal Inference Simulator", layout="wide")
+st.title("📈 Counterfactual Policy Simulator for GDP Forecasting")
 
-avg_effect = causal_model.const_marginal_effect(X_scaled).mean()
-user_diff = user_input - macro_df["fed_rate"].mean()
-impact = avg_effect * user_diff
+st.sidebar.header("Policy Inputs")
+fed_rate_adj = st.sidebar.slider("Adjust Fed Rate (percentage points)", -2.0, 2.0, 0.0, step=0.1)
+selected_model = st.sidebar.selectbox("Select Forecast Model", model_names)
 
-st.metric(label="Estimated GDP Change (log units)", value=f"{impact:.4f}")
+st.sidebar.markdown("---")
+st.sidebar.markdown("Built with 💡 by James Burrell")
 
-# Forecast comparison
-forecast_model = joblib.load("../models/xgb_forecast.pkl")
-x_latest = macro_df.drop(columns=["log_gdp"]).iloc[-1:].values
-forecasted_gdp = forecast_model.predict(x_latest)[0]
 
-st.subheader("📊 Forecasted vs. Counterfactual GDP")
-st.write(f"**Forecasted log GDP (XGBoost)**: {forecasted_gdp:.4f}")
-st.write(f"**Counterfactual log GDP**: {(forecasted_gdp + impact):.4f}")
+x_cols = macro_df.drop(columns=["log_gdp"]).copy()
+x_cols["fed_rate"] += fed_rate_adj
+
+model = models[selected_model]
+pred = model.predict(x_cols)
+
+
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(macro_df.index, macro_df["log_gdp"], label="Actual log(GDP)", linewidth=2)
+ax.plot(macro_df.index, pred, label=f"Predicted ({selected_model})", linestyle="--")
+ax.set_title("GDP Forecast Under Adjusted Fed Rate")
+ax.set_ylabel("log(GDP)")
+ax.legend()
+
+st.subheader("Forecast Results")
+st.pyplot(fig)
+
+
+st.subheader("Estimated Treatment Effect (Fed Rate → GDP)")
+fig2, ax2 = plt.subplots(figsize=(10, 3))
+ax2.plot(macro_df.index, treatment_effect, label="Treatment Effect", color="orange")
+ax2.axhline(0, linestyle="--", color="black")
+ax2.set_title("Estimated Impact of Fed Rate Changes on log(GDP)")
+ax2.set_ylabel("Estimated Effect")
+ax2.legend()
+
+st.pyplot(fig2)
