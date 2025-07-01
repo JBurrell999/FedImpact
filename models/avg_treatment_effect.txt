@@ -1,0 +1,1 @@
+Average Treatment Effect (binary fed_rate > 2.44): -0.1293
