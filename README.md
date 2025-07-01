@@ -136,7 +136,7 @@ streamlit run streamlit_app/app.py
 
 ## 👤 Author
 **James Burrell**  
-AI Policy Fellow @ TPI | ML Researcher @ USF  
+Public Policy Fellow @ Google | ML Researcher @ USF | Applied ML Intern @ RTX  
 [GitHub](https://github.com/JBurrell999)
 
 ---
