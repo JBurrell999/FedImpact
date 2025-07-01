@@ -1,103 +1,145 @@
-# 📈 Counterfactual Policy Simulator
+# Counterfactual Policy Simulator: Causal Inference in Macroeconomic Forecasting
 
-Simulate the impact of macroeconomic policy decisions (e.g., interest rate changes) on future economic outcomes using causal inference and ML-based time series forecasting. This project uses real data from the FRED API and includes deployment via Streamlit Cloud and Hugging Face Spaces.
+This project is a deployable Streamlit-based application that models the **causal effect of macroeconomic policy interventions**—like changes in the federal funds rate—on economic output using machine learning and causal inference. The app enables **interactive simulation of counterfactual economic scenarios** with multiple predictive models and interpretable visualizations.
+
+## 🔍 Motivation
+Understanding how macroeconomic variables influence GDP is essential for data-driven economic policy. This tool allows users to **simulate the impact of monetary levers**, estimate causal treatment effects, and evaluate how different models behave in response to changes in inputs such as interest rates, inflation, and unemployment.
+
+## ⚙️ How It Works
+### 1. **Data Collection**
+We use the FRED API to fetch:
+- Gross Domestic Product (GDP)
+- Consumer Price Index (CPI)
+- Unemployment rate
+- Federal Funds Rate (Fed Rate)
+- Money supply (M2)
+- Employment
+
+These are merged into a time-indexed macroeconomic dataset.
+
+### 2. **Forecasting Models**
+We train multiple forecasting models to predict `log(GDP)` using the full set of economic variables:
+- 📈 **Ridge Regression** (baseline linear)
+- 🌲 **XGBoost**, **LightGBM**, **CatBoost** (tree ensembles)
+
+> 🔹 These 4 models are available for use in the deployed **Streamlit UI**. Prophet and PyTorch models are trained offline but not exposed in the app due to performance or interface constraints.
+
+### 3. **Causal Estimation (T-Learner)**
+We simulate the treatment effect of adjusting `fed_rate` using a simple T-learner-style logic:
+- Predict `log(GDP)` for current data
+- Predict again after perturbing `fed_rate`
+- Compute the **difference as treatment effect**
+
+This gives an interpretable time series of **estimated marginal effects** from changing Fed policy.
+
+### 4. **Streamlit Interface**
+The user can:
+- Choose from 4 forecast models
+- Adjust the **Fed rate** using a slider
+- View **counterfactual forecasts** of GDP
+- View **treatment effect curves**
+
+> ⚠️ Currently only `fed_rate` is user-adjustable. All other features remain fixed, though they are used by the models.
 
 ---
 
-## 🔍 Key Features
-- Pulls live macroeconomic data (GDP, CPI, unemployment, etc.)
-- Forecasts future GDP using 5 ML models
-- Simulates counterfactual policy effects using 2 causal models
-- Deployed Streamlit app with real-time interaction
-- Logs results for experiment tracking and interpretability
+## 🧪 Why Not Just Linear Regression?
+While Ridge regression offers interpretability, many real-world relationships between macroeconomic factors and GDP are nonlinear or interaction-heavy. That’s why we include multiple model families and causal estimators:
+
+| Model        | Type            | Purpose                               |
+|--------------|------------------|---------------------------------------|
+| Ridge        | Linear           | Transparent baseline                   |
+| XGBoost      | Tree ensemble    | Nonlinear + interaction effects        |
+| CatBoost     | Tree ensemble    | Handles heterogeneity robustly        |
+| LightGBM     | Tree ensemble    | Fast + high accuracy                   |
+| Prophet (offline) | Time series | Captures seasonal trends              |
+| PyTorch NN (offline) | Neural Net | General function approximation       |
+| T-Learner    | Causal Inference | Measures isolated impact of Fed rate  |
 
 ---
 
-## 🧱 Project Directory Structure
-```
+## 📊 Project Structure
+```text
 counterfactual-policy-simulator/
 ├── data/
 │   ├── raw_macro.csv              # Raw data from FRED
 │   ├── clean_macro.csv            # Cleaned time series data
-│   └── final_macro.pkl            # Preprocessed DataFrame for modeling
+│   └── final_macro.pkl            # Preprocessed DataFrame
 │
 ├── models/
-│   ├── xgb_forecast.pkl           # XGBoost GDP forecast
-│   ├── ridge_forecast.pkl         # Ridge forecast
-│   ├── lgbm_forecast.pkl          # LightGBM forecast
-│   ├── catboost_forecast.pkl      # CatBoost forecast
-│   ├── prophet_forecast.pkl       # Prophet model (not pickled)
-│   ├── linear_dml.pkl             # LinearDML causal model
-│   └── causal_forest.pkl          # CausalForestDML causal model
-│
-├── notebooks/
-│   └── model_evaluation.ipynb     # Evaluation plots and metric comparison
+│   ├── *.pkl, .pt, .npy           # Trained ML + causal models
 │
 ├── streamlit_app/
-│   └── app.py                     # Main UI entry point
+│   └── app.py                     # Dashboard entry point
+│
+├── notebooks/
+│   └── model_eval.ipynb          # Forecast comparison + metrics
 │
 ├── scripts/
-│   └── model_training.py          # Model training pipeline
+│   ├── fetch_fred_data.py        # Automated FRED pipeline
+│   └── model_training.py         # Full training pipeline
 │
 ├── requirements.txt
-├── README.md
 └── .streamlit/
-    └── config.toml                # Streamlit Cloud configuration
+    └── config.toml                # Deployment config
 ```
 
 ---
 
-## 🤖 Models and Justification
+## 🚀 Usage
+### 1. Install requirements
+```bash
+pip install -r requirements.txt
+```
 
-### Forecasting Models
-- **XGBoost**: Strong performance with tabular data and non-linear dynamics. Easy to tune and interpret.
-- **Ridge Regression**: Baseline linear model to understand overfitting and provide benchmark.
-- **LightGBM**: Efficient, scalable gradient boosting for time series. Often faster and more accurate than XGBoost.
-- **CatBoost**: Handles categorical variables and outperforms other gradient boosters in some macroeconomic setups.
-- **Prophet**: Time-aware forecasting model developed by Meta. Useful for seasonality-aware GDP projection.
+### 2. Set FRED API key
+```bash
+echo "YOUR_KEY" > ~/.fred_api_key
+```
 
-### Causal Inference Models
-- **LinearDML**: Doubly robust method for estimating average treatment effects. Good baseline.
-- **CausalForestDML**: Non-parametric model capturing heterogeneous treatment effects — great for policy heterogeneity.
+### 3. Fetch & preprocess data
+```bash
+python scripts/fetch_fred_data.py
+jupyter notebook models/models.ipynb
+```
 
----
-
-## 📊 Model Evaluation
-Each model is evaluated on the test split using:
-- **MSE (Mean Squared Error)**
-- **MAE (Mean Absolute Error)**
-- **R² Score**
-
-You can run the notebook in `notebooks/model_evaluation.ipynb` to see:
-- Error distribution
-- Prediction vs. true GDP
-- Residual plots
+### 4. Launch dashboard
+```bash
+streamlit run streamlit_app/app.py
+```
 
 ---
 
-## 🚀 Deployment
-### Streamlit Cloud
-1. Push this repo to GitHub
-2. Go to https://streamlit.io/cloud and deploy the repo
-3. Make sure to set the API key as a secret:
-   ```bash
-   FRED_API_KEY = "your_api_key"
-   ```
+## 🌐 Deploy It
+### Option A: Streamlit Cloud
+- Push this repo to GitHub
+- Go to https://streamlit.io/cloud
+- Set `streamlit_app/app.py` as the entry point
 
-### Hugging Face Spaces
-1. Create a new Space: **Streamlit + Python**
-2. Upload this entire directory
-3. Add a `README.md` and `requirements.txt`
-4. Set up `app.py` as entrypoint
+### Option B: Hugging Face Spaces (coming soon)
+- Add `app.py`, `requirements.txt`
+- Configure as a Gradio or Streamlit app
 
 ---
 
-## ✅ TODO
-- [ ] Add Bayesian modeling option (PyMC or Bambi)
-- [ ] Enable user-uploaded policy timelines
-- [ ] Add multi-country panel simulation
+## 🙋 FAQ
+**Q: Are features like CPI and unemployment used?**  
+✅ Yes. All models are trained on them. The **only variable adjusted in simulation** is the Fed rate.
+
+**Q: Can I simulate inflation shocks or recessions?**  
+🛠 You can extend the UI to allow sliders for all variables. We’ll add this soon.
+
+**Q: Where is the causal forest model?**  
+❌ Removed due to package issues. A simplified T-learner approach is used instead.
 
 ---
 
-## 📬 Contact
-Made by [James Burrell](mailto:jamesburrell999@gmail.com).
+## 👤 Author
+**James Burrell**  
+AI Policy Fellow @ TPI | ML Researcher @ USF  
+[GitHub](https://github.com/JBurrell999)
+
+---
+
+## 📜 License
+MIT

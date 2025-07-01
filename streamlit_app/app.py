@@ -9,14 +9,12 @@ import seaborn as sns
 macro_df = pd.read_pickle("data/final_macro.pkl")
 treatment_effect = np.load("models/treatment_effect.npy")
 
-
 model_names = [
     "ridge", "xgb", "lgbm", "catboost"
 ]
 models = {}
 for name in model_names:
     models[name] = joblib.load(f"models/{name}_forecast.pkl")
-
 
 st.set_page_config(page_title="Causal Inference Simulator", layout="wide")
 st.title("📈 Counterfactual Policy Simulator for GDP Forecasting")
@@ -28,13 +26,11 @@ selected_model = st.sidebar.selectbox("Select Forecast Model", model_names)
 st.sidebar.markdown("---")
 st.sidebar.markdown("Built with 💡 by James Burrell")
 
-
 x_cols = macro_df.drop(columns=["log_gdp"]).copy()
 x_cols["fed_rate"] += fed_rate_adj
 
 model = models[selected_model]
 pred = model.predict(x_cols)
-
 
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(macro_df.index, macro_df["log_gdp"], label="Actual log(GDP)", linewidth=2)
@@ -45,7 +41,6 @@ ax.legend()
 
 st.subheader("Forecast Results")
 st.pyplot(fig)
-
 
 st.subheader("Estimated Treatment Effect (Fed Rate → GDP)")
 fig2, ax2 = plt.subplots(figsize=(10, 3))
