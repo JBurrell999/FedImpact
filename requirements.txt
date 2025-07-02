@@ -8,3 +8,4 @@ prophet
 torch
 joblib
 fredapi
+seaborn
